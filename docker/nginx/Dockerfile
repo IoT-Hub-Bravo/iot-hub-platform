@@ -1,12 +1,14 @@
 FROM nginx:alpine
 
-# Copy nginx.conf to the main config
+RUN apk add --no-cache openssl
+
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/nginx/entrypoint.sh /entrypoint.sh
 
-# Create directory for certificates
-RUN mkdir -p /etc/nginx/certs
+RUN chmod +x /entrypoint.sh && \
+    mkdir -p /etc/nginx/certs
 
-# Expose HTTPS port
 EXPOSE 443
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

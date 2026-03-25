@@ -74,24 +74,7 @@ services:
       - kafka
     networks:
       - backend
-
-  kafka-init-topics:
-    image: apache/kafka:4.2.0
-    depends_on:
-      - kafka
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      "
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic telemetry.raw &&
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic telemetry.clean &&
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic telemetry.expired &&
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic rules.triggered &&
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic events.recorded &&
-      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic audit.events
-      "
-    networks:
-      - backend
-
+      
   prometheus:
     image: prom/prometheus
     container_name: prometheus

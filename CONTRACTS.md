@@ -7,7 +7,7 @@ These contracts enable consistent communication between independently developed 
 
 # Event Envelope
 
-All events MUST follow the standard envelope:
+All events MUST follow the standard envelope (message body):
 
 ```json
 {
@@ -16,22 +16,45 @@ All events MUST follow the standard envelope:
   "version": "v1",
   "timestamp": "ISO-8601",
   "source": "service-name",
-  "correlation_id": "trace-id",
   "payload": {}
 }
 ```
 
-### Fields
+---
 
-| Field          | Description                      |
-| -------------- | -------------------------------- |
-| event_id       | Unique event identifier          |
-| event_type     | Domain + action                  |
-| version        | Schema version                   |
-| timestamp      | Event creation time              |
-| source         | Producing service                |
-| correlation_id | Used for tracing across services |
-| payload        | Event-specific data              |
+## Fields
+
+| Field      | Description             |
+| ---------- | ----------------------- |
+| event_id   | Unique event identifier |
+| event_type | Domain + action         |
+| version    | Schema version          |
+| timestamp  | Event creation time     |
+| source     | Producing service       |
+| payload    | Event-specific data     |
+
+---
+
+## Kafka Headers
+
+The following metadata MUST be sent via Kafka headers:
+
+| Header         | Description                         |
+| -------------- | ----------------------------------- |
+| correlation_id | Trace identifier across services    |
+| protocol       | Source transport (e.g., mqtt, http) |
+
+
+Example:
+```
+correlation_id=abc-123
+protocol=mqtt
+```
+### **Notes**
+- Headers are used for transport and tracing metadata
+- Headers MUST NOT replace the event envelope
+- Consumers SHOULD read headers when available
+- For backward compatibility, fields MAY be duplicated in payload
 
 ---
 
@@ -57,7 +80,7 @@ telemetry.raw
 telemetry.clean
 telemetry.expired
 rules.triggered
-events.recorded
+alerts.created
 audit.events
 ```
 
@@ -75,13 +98,13 @@ audit.events
 {
   "device_serial": "string",
   "ts": "ISO-8601",
-  "metrics": {
-    "<metric_name>": {
+  "metrics": [
+    {
+      "name" :"metric_name",
       "value": "int | float | string | bool",
-      "unit": "string"
+      "unit": "string" 
     }
-  },
-  "protocol": "mqtt | http"
+  ]
 }
 ```
 
@@ -101,10 +124,8 @@ audit.events
   "device_serial_id": "string",
   "device_metric_id": "number",
   "ts": "ISO-8601",
-  "value_jsonb": {
-    "t": "numeric | string | boolean",
-    "v": "int | float | string | bool"
-  }
+  "type": "numeric | string | boolean",
+  "value": "int | float | string | bool"
 }
 ```
 
@@ -178,9 +199,9 @@ audit.events
 
 ---
 
-## Events Registry
+## Alerts 
 
-### event.recorded.v1
+### alert.created.v1
 
 **Topic:** `events.recorded`
 
@@ -202,9 +223,9 @@ audit.events
 
 **Notes:**
 
-* Represents persisted business event derived from rule execution
-* Used as source of truth for actions and history
-
+- Represents a business-level alert generated from rule execution
+- Replaces generic event registry approach
+- Used for monitoring, alerting, and user-facing systems
 ---
 
 ## Audit
@@ -215,11 +236,17 @@ audit.events
 
 ```json
 {
-  "service": "string",
-  "action": "string",
+  "actor_type": "user | system | external",
+  "actor_id": "string | null",
+  "entity_type": "string",
   "entity_id": "string",
-  "timestamp": "ISO-8601",
-  "status": "SUCCESS | FAILED"
+  "event_type": "string",
+  "severity": "info | warning | error",
+  "occurred_at": "ISO-8601",
+  "details": {
+    "any": "flexible JSON structure"
+  },
+  "audit_event_id": "uuid"
 }
 ```
 
@@ -234,68 +261,58 @@ audit.events
 # Publishing & Consuming Guidelines
 
 ## Publishing
-
-* MUST use the standard envelope
-* MUST validate payload against schema before sending
-* MUST include `correlation_id` for traceability
-* SHOULD include meaningful `event_type` aligned with naming conventions
-
-## Consuming
-
-* MUST validate event version
-* SHOULD ignore unknown fields (forward compatibility)
-* MUST handle idempotency (avoid duplicate processing)
-* SHOULD log and route invalid events to dead-letter topics
+- **MUST** use the standard event envelope
+- **MUST** validate payload against schema before sending
+- **MUST** include correlation_id in Kafka headers
+- **SHOULD** include protocol in Kafka headers
+- **SHOULD** include meaningful event_type
+Consuming
+- **MUST** validate event version
+- **SHOULD** ignore unknown fields (forward compatibility)
+- **MUST** handle idempotency
+- **SHOULD** read metadata from Kafka headers
+- **SHOULD** route invalid events to dead-letter topics
 
 ---
 
 # Design Principles
-
-* Contracts are the **single source of truth**
-* Events are **immutable**
-* Services are **loosely coupled via events**
-* Each domain owns its contracts
-* Avoid reusing the same event across multiple stages
-* Prefer **explicit events per stage** over overloading one schema
+- Contracts are the single source of truth
+- Events are immutable
+- Services are loosely coupled via events
+- Each domain owns its contracts
+- Prefer explicit events per stage
 
 ---
 
 # Testing Strategy
-
 ## Service-Level Testing
-
-* Mock external dependencies (Kafka, DB, other services)
-* Validate schema compliance
-* Validate producer/consumer logic
+- Mock Kafka, DB, external services
+- Validate schema compliance
+- Validate producer/consumer logic
 
 ## Integration Testing
-
-* Use real message broker (e.g., Kafka)
-* Validate end-to-end event flow
-* Validate contract compatibility between services
+- Use real Kafka
+- Validate end-to-end event flow
+- Validate contract compatibility
 
 ---
 
 # Smoke Test Flow
-
 1. Start platform (docker-compose or Kubernetes)
-2. Publish `telemetry.received` event
+2. Publish telemetry.received event
 3. Verify:
-
-   * Telemetry is processed (`telemetry.clean`)
-   * Expired telemetry (if applicable) is emitted
-   * Rule is triggered (`rules.triggered`)
-   * Event is recorded (`events.recorded`)
-   * Audit log is created (`audit.events`)
+  - Telemetry is processed (telemetry.clean)
+  - Expired telemetry is emitted (telemetry.expired)
+  - Rule is triggered (rules.triggered)
+  - Alert is created (alerts.created)
+  - Audit log is created (audit.events)
 
 ---
 
 # Acceptance Summary
-
-* Shared contracts are defined and structured
-* Standard event envelope is enforced
-* Versioning rules are documented
-* Topics and naming conventions are consistent
-* End-to-end flow is testable
-
----
+- Shared contracts are defined and structured
+- Event envelope is consistent and validated
+- Kafka headers are used for metadata
+- Versioning rules are enforced
+- Topics and naming are consistent
+- End-to-end flow is testable

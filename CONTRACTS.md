@@ -127,10 +127,8 @@ audit.events
   "device_serial_id": "string",
   "device_metric_id": "number",
   "ts": "ISO-8601",
-  "value_jsonb": {
-    "t": "numeric | string | boolean",
-    "v": "int | float | string | bool"
-  }
+  "type": "numeric | string | boolean",
+  "value": "int | float | string | bool"
 }
 ```
 

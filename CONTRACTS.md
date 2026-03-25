@@ -1,69 +1,58 @@
 # Shared Event Contracts
 
 This document defines the baseline cross-service event contracts for the IoT Hub platform.
-These contracts enable consistent communication between independently developed microservices.
 
 ---
 
-# Event Envelope
+# Event Structure
 
-All events MUST follow the standard envelope (message body):
+Events are split into:
 
-```json
-{
-  "event_id": "uuid",
-  "event_type": "telemetry.received",
-  "version": "v1",
-  "timestamp": "ISO-8601",
-  "source": "service-name",
-  "payload": {}
-}
+- **Kafka Headers** → event metadata (envelope)
+- **Message Body (Payload)** → business data only
+
+---
+
+# Kafka Headers (Event Envelope)
+
+All events MUST include the following headers:
+
+| Header         | Description                      |
+|----------------|----------------------------------|
+| event_id       | Unique event identifier          |
+| event_type     | Domain + action                  |
+| version        | Schema version                   |
+| timestamp      | Event creation time              |
+| source         | Producing service                |
+| correlation_id | Trace identifier                 |
+| protocol       | Transport (mqtt, http, etc.)     |
+
+---
+
+## Example
 ```
-
----
-
-## Fields
-
-| Field      | Description             |
-| ---------- | ----------------------- |
-| event_id   | Unique event identifier |
-| event_type | Domain + action         |
-| version    | Schema version          |
-| timestamp  | Event creation time     |
-| source     | Producing service       |
-| payload    | Event-specific data     |
-
----
-
-## Kafka Headers
-
-The following metadata MUST be sent via Kafka headers:
-
-| Header         | Description                         |
-| -------------- | ----------------------------------- |
-| correlation_id | Trace identifier across services    |
-| protocol       | Source transport (e.g., mqtt, http) |
-
-
-Example:
-```
+event_id=uuid
+event_type=telemetry.received
+version=v1
+timestamp=ISO-8601
+source=telemetry-service
 correlation_id=abc-123
 protocol=mqtt
 ```
-### **Notes**
-- Headers are used for transport and tracing metadata
-- Headers MUST NOT replace the event envelope
-- Consumers SHOULD read headers when available
-- For backward compatibility, fields MAY be duplicated in payload
+---
+
+# Message Body (Payload)
+
+- MUST contain **only business data**
+- MUST NOT include envelope fields
 
 ---
 
 # Versioning Rules
 
-* Version format: `v1`, `v2`, etc.
-* Breaking changes → new version
-* Existing versions MUST NOT be modified
-* Services SHOULD support backward compatibility when possible
+- Version format: `v1`, `v2`, etc.
+- Breaking changes → new version
+- Existing versions MUST NOT be modified
 
 ---
 
@@ -118,7 +107,6 @@ audit.events
 ### telemetry.processed.v1
 
 **Topic:** `telemetry.clean`
-
 ```json
 {
   "device_serial_id": "string",
@@ -129,18 +117,11 @@ audit.events
 }
 ```
 
-**Notes:**
-
-* Normalized structure optimized for storage and querying
-* `device_metric_id` is resolved via device registry/config service
-* `value_jsonb` is aligned with DB storage format
-
 ---
 
 ### telemetry.expired.v1
 
 **Topic:** `telemetry.expired`
-
 ```json
 {
   "device_serial_id": "string",
@@ -266,7 +247,7 @@ audit.events
 - **MUST** include correlation_id in Kafka headers
 - **SHOULD** include protocol in Kafka headers
 - **SHOULD** include meaningful event_type
-Consuming
+## Consuming
 - **MUST** validate event version
 - **SHOULD** ignore unknown fields (forward compatibility)
 - **MUST** handle idempotency

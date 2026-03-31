@@ -65,6 +65,7 @@ protocol=mqtt
 ### Examples
 
 ```
+device.created
 telemetry.raw
 telemetry.clean
 telemetry.expired
@@ -77,6 +78,25 @@ audit.events
 
 # Event Contracts
 
+## Device
+
+### device.created.v1
+
+**Topic:** `device.regitry`
+
+```json
+{
+  "device_serial_id": "string",
+  "metrics":[
+    {
+      "name": "string", 
+      "unit": "string", 
+      "type": "numeric | string | boolean"
+    }
+  ],
+  "created_at": "ISO-8601",
+}
+
 ## Telemetry
 
 ### telemetry.received.v1
@@ -85,7 +105,7 @@ audit.events
 
 ```json
 {
-  "device_serial": "string",
+  "device_serial_id": "string",
   "ts": "ISO-8601",
   "metrics": [
     {

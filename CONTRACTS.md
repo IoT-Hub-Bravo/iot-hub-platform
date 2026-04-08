@@ -96,7 +96,7 @@ audit.events
   ],
   "created_at": "ISO-8601",
 }
-
+```
 ## Telemetry
 
 ### telemetry.received.v1
